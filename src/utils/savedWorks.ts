@@ -28,6 +28,8 @@ export const compactSavedWork = (work: SavedWork): SavedWork => ({
   rows: work.rows,
   colors: work.colors,
   cellData: work.cellData ?? encodeCells(decodeSavedCells(work), work.colors),
+  physicalHeight: work.physicalHeight,
+  physicalWidth: work.physicalWidth,
   version: 2,
 })
 

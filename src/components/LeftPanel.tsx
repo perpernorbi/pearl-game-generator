@@ -16,6 +16,8 @@ type LeftPanelProps = {
   onLoadSavedWork: (work: SavedWork) => void
   onRenameSavedWork: (id: string, name: string) => void
   onSetColumns: (columns: number) => void
+  onSetPhysicalHeight: (height: number) => void
+  onSetPhysicalWidth: (width: number) => void
   onSetProjectName: (name: string) => void
   onSetRows: (rows: number) => void
   onStartCropDrag: (
@@ -26,6 +28,8 @@ type LeftPanelProps = {
   onEndCropDrag: (event: PointerEvent<HTMLDivElement>) => void
   onUpload: (file: File | undefined) => void
   projectName: string
+  physicalHeight: number
+  physicalWidth: number
   rows: number
   savedWorks: SavedWork[]
   stageRef: RefObject<HTMLDivElement | null>
@@ -41,12 +45,16 @@ export function LeftPanel({
   onLoadSavedWork,
   onRenameSavedWork,
   onSetColumns,
+  onSetPhysicalHeight,
+  onSetPhysicalWidth,
   onSetProjectName,
   onSetRows,
   onStartCropDrag,
   onUpdateCropDrag,
   onUpload,
   projectName,
+  physicalHeight,
+  physicalWidth,
   rows,
   savedWorks,
   stageRef,
@@ -89,6 +97,29 @@ export function LeftPanel({
             type="number"
             value={rows}
             onChange={(event) => onSetRows(Number(event.target.value))}
+          />
+        </label>
+      </div>
+
+      <div className="field-row">
+        <label className="field">
+          <span>Physical width (mm)</span>
+          <input
+            min="1"
+            step="0.1"
+            type="number"
+            value={physicalWidth}
+            onChange={(event) => onSetPhysicalWidth(Number(event.target.value))}
+          />
+        </label>
+        <label className="field">
+          <span>Physical height (mm)</span>
+          <input
+            min="1"
+            step="0.1"
+            type="number"
+            value={physicalHeight}
+            onChange={(event) => onSetPhysicalHeight(Number(event.target.value))}
           />
         </label>
       </div>

@@ -57,5 +57,7 @@ export type SavedWork = {
   colors: PearlColor[]
   cellData?: string
   cells?: string[]
+  physicalHeight?: number
+  physicalWidth?: number
   version?: number
 }

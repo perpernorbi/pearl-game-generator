@@ -14,7 +14,7 @@ import {
   encodeCells,
   serializeSavedWorks,
 } from './utils/savedWorks'
-import { createTemplateSvg } from './utils/svg'
+import { createPhysicalTemplateSvg, createTemplateSvg } from './utils/svg'
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -31,6 +31,8 @@ function App() {
   })
   const [columns, setColumns] = useState(29)
   const [rows, setRows] = useState(29)
+  const [physicalWidth, setPhysicalWidth] = useState(145)
+  const [physicalHeight, setPhysicalHeight] = useState(145)
   const [colors, setColors] = useState<PearlColor[]>(defaultColors)
   const [selectedColorId, setSelectedColorId] = useState(defaultColors[0].id)
   const [newColorName, setNewColorName] = useState('New color')
@@ -147,6 +149,35 @@ function App() {
     [cells, colorCounts, columns, croppedImageDataUrl, imageOpacity, projectName, rows],
   )
 
+  const printSvgMarkup = useMemo(
+    () =>
+      createTemplateSvg({
+        cells,
+        colorCounts,
+        columns,
+        croppedImageDataUrl: '',
+        imageOpacity,
+        projectName,
+        rows,
+      }),
+    [cells, colorCounts, columns, imageOpacity, projectName, rows],
+  )
+
+  const printPhysicalSvgMarkup = useMemo(
+    () =>
+      createPhysicalTemplateSvg({
+        cells,
+        columns,
+        croppedImageDataUrl: '',
+        imageOpacity,
+        physicalHeight,
+        physicalWidth,
+        projectName,
+        rows,
+      }),
+    [cells, columns, imageOpacity, physicalHeight, physicalWidth, projectName, rows],
+  )
+
   const handleUpload = (file: File | undefined) => {
     if (!file) return
     const url = URL.createObjectURL(file)
@@ -167,6 +198,7 @@ function App() {
   const setGridColumns = (nextColumns: number) => {
     const normalizedColumns = Math.max(1, nextColumns)
     setColumns(normalizedColumns)
+    setPhysicalHeight(roundDimension(physicalWidth * (rows / normalizedColumns)))
     setCrop((current) =>
       normalizeCropToAspect(
         current,
@@ -179,6 +211,7 @@ function App() {
   const setGridRows = (nextRows: number) => {
     const normalizedRows = Math.max(1, nextRows)
     setRows(normalizedRows)
+    setPhysicalHeight(roundDimension(physicalWidth * (normalizedRows / columns)))
     setCrop((current) =>
       normalizeCropToAspect(
         current,
@@ -186,6 +219,18 @@ function App() {
         Math.max(1, columns) / normalizedRows,
       ),
     )
+  }
+
+  const setTemplatePhysicalWidth = (nextWidth: number) => {
+    const normalizedWidth = normalizeDimension(nextWidth)
+    setPhysicalWidth(roundDimension(normalizedWidth))
+    setPhysicalHeight(roundDimension(normalizedWidth * (rows / columns)))
+  }
+
+  const setTemplatePhysicalHeight = (nextHeight: number) => {
+    const normalizedHeight = normalizeDimension(nextHeight)
+    setPhysicalHeight(roundDimension(normalizedHeight))
+    setPhysicalWidth(roundDimension(normalizedHeight * (columns / rows)))
   }
 
   const startCropDrag = (action: CropAction, event: PointerEvent<HTMLElement>) => {
@@ -321,7 +366,7 @@ function App() {
     if (!printWindow) return
     printWindow.document.write(`<!doctype html><html><head><title>${escapeXml(
       projectName,
-    )}</title><style>@page{size:A4;margin:0}body{margin:0}</style></head><body>${svgMarkup}<script>window.print()</script></body></html>`)
+    )}</title><style>@page{size:A4;margin:0}body{margin:0}svg{display:block;width:210mm;height:297mm}.page-two{break-before:page;page-break-before:always}</style></head><body>${printSvgMarkup}<div class="page-two">${printPhysicalSvgMarkup}</div><script>window.print()</script></body></html>`)
     printWindow.document.close()
   }
 
@@ -334,6 +379,8 @@ function App() {
       rows,
       colors,
       cellData: encodeCells(cells, colors),
+      physicalHeight,
+      physicalWidth,
       version: 2,
     }
     const next = [savedWork, ...savedWorks].slice(0, 8)
@@ -353,6 +400,11 @@ function App() {
     setProjectName(work.name)
     setColumns(work.columns)
     setRows(work.rows)
+    const loadedWidth = work.physicalWidth ?? physicalWidth
+    setPhysicalWidth(roundDimension(loadedWidth))
+    setPhysicalHeight(
+      roundDimension(work.physicalHeight ?? loadedWidth * (work.rows / work.columns)),
+    )
     setColors(work.colors)
     setSelectedColorId(work.colors[0]?.id ?? defaultColors[0].id)
     setCells(decodeSavedCells(work))
@@ -420,12 +472,16 @@ function App() {
           onLoadSavedWork={loadSavedWork}
           onRenameSavedWork={renameSavedWork}
           onSetColumns={setGridColumns}
+          onSetPhysicalHeight={setTemplatePhysicalHeight}
+          onSetPhysicalWidth={setTemplatePhysicalWidth}
           onSetProjectName={setProjectName}
           onSetRows={setGridRows}
           onStartCropDrag={startCropDrag}
           onUpdateCropDrag={updateCropDrag}
           onUpload={handleUpload}
           projectName={projectName}
+          physicalHeight={physicalHeight}
+          physicalWidth={physicalWidth}
           rows={rows}
           savedWorks={savedWorks}
           stageRef={cropStageRef}
@@ -606,5 +662,10 @@ const resizeAspectCrop = (
     height: Math.round(height),
   }
 }
+
+const normalizeDimension = (value: number) =>
+  Number.isFinite(value) ? Math.max(1, value) : 1
+
+const roundDimension = (value: number) => Math.round(value * 10) / 10
 
 export default App
