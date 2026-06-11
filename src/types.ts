@@ -28,6 +28,7 @@ export type CropAction =
 
 export type CropDrag = {
   action: CropAction
+  aspect: number
   crop: Crop
   pointerId: number
   startX: number
