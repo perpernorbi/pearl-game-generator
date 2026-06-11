@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { PointerEvent } from 'react'
+import type { KeyboardEvent, PointerEvent } from 'react'
 import './App.css'
 
 type PearlColor = {
@@ -177,6 +177,7 @@ function App() {
   const [columns, setColumns] = useState(29)
   const [rows, setRows] = useState(29)
   const [colors, setColors] = useState<PearlColor[]>(defaultColors)
+  const [selectedColorId, setSelectedColorId] = useState(defaultColors[0].id)
   const [newColorName, setNewColorName] = useState('New color')
   const [newColorHex, setNewColorHex] = useState('#7c3aed')
   const [cells, setCells] = useState<string[]>([])
@@ -203,6 +204,8 @@ function App() {
     width: imageSize.width ? (safeCropWidth / imageSize.width) * 100 : 100,
     height: imageSize.height ? (safeCropHeight / imageSize.height) * 100 : 100,
   }
+  const selectedColor =
+    colors.find((color) => color.id === selectedColorId) ?? colors[0]
 
   useEffect(() => {
     if (!imageUrl || colors.length === 0) {
@@ -447,27 +450,67 @@ function App() {
 
   const addColor = () => {
     if (colors.some((color) => color.hex.toLowerCase() === newColorHex)) return
+    const colorId = makeId()
     setColors((current) => [
       ...current,
       {
-        id: makeId(),
+        id: colorId,
         name: newColorName.trim() || 'Pearl color',
         hex: newColorHex,
       },
     ])
+    setSelectedColorId(colorId)
   }
 
   const updateColor = (id: string, patch: Partial<PearlColor>) => {
+    const oldHex = colors.find((color) => color.id === id)?.hex
     setColors((current) =>
       current.map((color) =>
         color.id === id ? { ...color, ...patch } : color,
       ),
     )
+    if (patch.hex && oldHex) {
+      setCells((current) =>
+        current.map((cell) => (cell === oldHex ? patch.hex ?? cell : cell)),
+      )
+    }
   }
 
   const removeColor = (id: string) => {
     if (colors.length <= 1) return
-    setColors((current) => current.filter((color) => color.id !== id))
+    const nextColors = colors.filter((color) => color.id !== id)
+    const replacement = nextColors[0]
+    const removedColor = colors.find((color) => color.id === id)
+    setColors(nextColors)
+    if (selectedColorId === id) {
+      setSelectedColorId(replacement.id)
+    }
+    if (removedColor) {
+      setCells((current) =>
+        current.map((cell) =>
+          cell === removedColor.hex ? replacement.hex : cell,
+        ),
+      )
+    }
+  }
+
+  const paintCell = (index: number) => {
+    if (!selectedColor) return
+    setCells((current) =>
+      current.map((cell, cellIndex) =>
+        cellIndex === index ? selectedColor.hex : cell,
+      ),
+    )
+  }
+
+  const selectColorByKeyboard = (
+    colorId: string,
+    event: KeyboardEvent<HTMLDivElement>,
+  ) => {
+    if (event.target !== event.currentTarget) return
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    setSelectedColorId(colorId)
   }
 
   const downloadSvg = () => {
@@ -518,6 +561,7 @@ function App() {
     setColumns(work.columns)
     setRows(work.rows)
     setColors(work.colors)
+    setSelectedColorId(work.colors[0]?.id ?? defaultColors[0].id)
     setCells(decodeSavedCells(work))
     setCroppedImageDataUrl('')
     setImageUrl('')
@@ -689,20 +733,6 @@ function App() {
           </section>
 
           <section className="panel">
-            <h2>Image guide</h2>
-            <label className="field">
-              <span>Background opacity: {imageOpacity}%</span>
-              <input
-                min="0"
-                max="100"
-                type="range"
-                value={imageOpacity}
-                onChange={(event) => setImageOpacity(Number(event.target.value))}
-              />
-            </label>
-          </section>
-
-          <section className="panel">
             <h2>Saved works</h2>
             {savedWorks.length === 0 ? (
               <p className="empty-note">No cookie-saved designs yet.</p>
@@ -743,17 +773,17 @@ function App() {
         </aside>
 
         <section className="preview-area">
-          <div className="preview-toolbar">
-            <div>
-              <h2>Template preview</h2>
-              <p>
-                {columns} x {rows} grid, {cells.length} pearls
-              </p>
-            </div>
-          </div>
-
           <div className="preview-layout">
             <div className="pattern-column">
+              <div className="preview-toolbar">
+                <div>
+                  <h2>Template preview</h2>
+                  <p>
+                    {columns} x {rows} grid, {cells.length} pearls
+                  </p>
+                </div>
+              </div>
+
               {cells.length > 0 ? (
                 <div
                   className="pearl-grid"
@@ -771,10 +801,15 @@ function App() {
                     />
                   ) : null}
                   {cells.map((cell, index) => (
-                    <span
+                    <button
+                      type="button"
                       className="pearl"
                       key={`${cell}-${index}`}
                       style={{ backgroundColor: cell }}
+                      aria-label={`Paint row ${Math.floor(index / columns) + 1}, column ${
+                        (index % columns) + 1
+                      } ${selectedColor ? selectedColor.name : 'selected color'}`}
+                      onClick={() => paintCell(index)}
                       title={`Row ${Math.floor(index / columns) + 1}, column ${
                         (index % columns) + 1
                       }`}
@@ -789,17 +824,41 @@ function App() {
             </div>
 
             <section className="counts">
+              <div className="guide-control">
+                <h2>Image guide</h2>
+                <label className="field">
+                  <span>Overlay opacity: {imageOpacity}%</span>
+                  <input
+                    min="0"
+                    max="100"
+                    type="range"
+                    value={imageOpacity}
+                    onChange={(event) =>
+                      setImageOpacity(Number(event.target.value))
+                    }
+                  />
+                </label>
+              </div>
               <div className="counts-header">
                 <div>
                   <h2>Pearl colors and counts</h2>
                   <p>
-                    Edit the available colors here. Counts update from the current grid.
+                    Select a color, then click pearls in the grid to repaint them.
                   </p>
                 </div>
               </div>
               <div className="color-editor">
                 {colors.map((color) => (
-                  <div className="color-row" key={color.id}>
+                  <div
+                    className={`color-row ${
+                      selectedColor?.id === color.id ? 'color-row-selected' : ''
+                    }`}
+                    key={color.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedColorId(color.id)}
+                    onKeyDown={(event) => selectColorByKeyboard(color.id, event)}
+                  >
                     <input
                       aria-label={`${color.name} color`}
                       type="color"
