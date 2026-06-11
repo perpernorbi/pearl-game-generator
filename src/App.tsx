@@ -173,6 +173,8 @@ function App() {
   const [newColorName, setNewColorName] = useState('New color')
   const [newColorHex, setNewColorHex] = useState('#7c3aed')
   const [cells, setCells] = useState<string[]>([])
+  const [croppedImageDataUrl, setCroppedImageDataUrl] = useState('')
+  const [imageOpacity, setImageOpacity] = useState(35)
   const [projectName, setProjectName] = useState('Pearl template')
   const [savedWorks, setSavedWorks] = useState<SavedWork[]>(() => {
     try {
@@ -223,6 +225,27 @@ function App() {
         rows,
       )
 
+      const croppedCanvas = document.createElement('canvas')
+      const croppedContext = croppedCanvas.getContext('2d')
+      const croppedMaxSize = 1200
+      const cropRatio = safeCropWidth / safeCropHeight
+      croppedCanvas.width =
+        cropRatio >= 1 ? croppedMaxSize : Math.round(croppedMaxSize * cropRatio)
+      croppedCanvas.height =
+        cropRatio >= 1 ? Math.round(croppedMaxSize / cropRatio) : croppedMaxSize
+      croppedContext?.drawImage(
+        image,
+        safeCropX,
+        safeCropY,
+        safeCropWidth,
+        safeCropHeight,
+        0,
+        0,
+        croppedCanvas.width,
+        croppedCanvas.height,
+      )
+      setCroppedImageDataUrl(croppedCanvas.toDataURL('image/jpeg', 0.82))
+
       const imageData = context.getImageData(0, 0, columns, rows).data
       const rendered = Array.from({ length: columns * rows }, (_, index) => {
         const offset = index * 4
@@ -260,6 +283,17 @@ function App() {
     const gridWidth = dotStep * columns
     const originX = (pageWidth - gridWidth) / 2
     const originY = margin + 10
+    const backgroundImage = croppedImageDataUrl
+      ? `<image href="${croppedImageDataUrl}" x="${originX.toFixed(
+          3,
+        )}" y="${originY.toFixed(3)}" width="${gridWidth.toFixed(
+          3,
+        )}" height="${(dotStep * rows).toFixed(
+          3,
+        )}" preserveAspectRatio="none" opacity="${(imageOpacity / 100).toFixed(
+          2,
+        )}" />`
+      : ''
 
     const dots = cells
       .map((cell, index) => {
@@ -293,13 +327,14 @@ function App() {
   )}</text>
   <text x="${margin}" y="18" font-size="3.5" font-family="Arial, sans-serif" fill="#4b5563">${columns} x ${rows} grid, ${cells.length} pearls</text>
   <g>${dots}</g>
+  ${backgroundImage}
   <line x1="${margin}" y1="${pageHeight - margin - 34}" x2="${
     pageWidth - margin
   }" y2="${pageHeight - margin - 34}" stroke="#d1d5db" stroke-width="0.2" />
   <text x="${margin}" y="${pageHeight - margin - 29}" font-size="4" font-family="Arial, sans-serif" fill="#111827">Pearl counts</text>
   <g font-family="Arial, sans-serif">${legend}</g>
 </svg>`
-  }, [cells, colorCounts, columns, projectName, rows])
+  }, [cells, colorCounts, columns, croppedImageDataUrl, imageOpacity, projectName, rows])
 
   const handleUpload = (file: File | undefined) => {
     if (!file) return
@@ -477,6 +512,7 @@ function App() {
     setRows(work.rows)
     setColors(work.colors)
     setCells(decodeSavedCells(work))
+    setCroppedImageDataUrl('')
     setImageUrl('')
     setImageSize({ width: 0, height: 0 })
     setMessage(`Loaded saved work: ${work.name}`)
@@ -646,6 +682,20 @@ function App() {
           </section>
 
           <section className="panel">
+            <h2>Image guide</h2>
+            <label className="field">
+              <span>Background opacity: {imageOpacity}%</span>
+              <input
+                min="0"
+                max="100"
+                type="range"
+                value={imageOpacity}
+                onChange={(event) => setImageOpacity(Number(event.target.value))}
+              />
+            </label>
+          </section>
+
+          <section className="panel">
             <h2>Pearl colors</h2>
             <div className="palette-list">
               {colors.map((color) => (
@@ -742,6 +792,14 @@ function App() {
                 aspectRatio: `${columns} / ${rows}`,
               }}
             >
+              {croppedImageDataUrl ? (
+                <img
+                  className="grid-image-guide"
+                  src={croppedImageDataUrl}
+                  alt=""
+                  style={{ opacity: imageOpacity / 100 }}
+                />
+              ) : null}
               {cells.map((cell, index) => (
                 <span
                   className="pearl"
