@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { PointerEvent } from 'react'
 import './App.css'
 
 type PearlColor = {
@@ -10,7 +11,29 @@ type PearlColor = {
 type Crop = {
   x: number
   y: number
-  size: number
+  width: number
+  height: number
+}
+
+type CropAction =
+  | 'move'
+  | 'north'
+  | 'east'
+  | 'south'
+  | 'west'
+  | 'north-east'
+  | 'south-east'
+  | 'south-west'
+  | 'north-west'
+
+type CropDrag = {
+  action: CropAction
+  crop: Crop
+  pointerId: number
+  startX: number
+  startY: number
+  scaleX: number
+  scaleY: number
 }
 
 type SavedWork = {
@@ -86,11 +109,21 @@ const escapeXml = (value: string) =>
 
 const makeId = () => Math.random().toString(36).slice(2, 10)
 
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max)
+
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const cropStageRef = useRef<HTMLDivElement | null>(null)
+  const cropDragRef = useRef<CropDrag | null>(null)
   const [imageUrl, setImageUrl] = useState('')
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 })
-  const [crop, setCrop] = useState<Crop>({ x: 0, y: 0, size: 100 })
+  const [crop, setCrop] = useState<Crop>({
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 100,
+  })
   const [columns, setColumns] = useState(29)
   const [rows, setRows] = useState(29)
   const [colors, setColors] = useState<PearlColor[]>(defaultColors)
@@ -108,10 +141,16 @@ function App() {
   })
   const [message, setMessage] = useState('')
 
-  const maxCropSize = Math.min(imageSize.width, imageSize.height)
-  const safeCropSize = Math.max(1, Math.min(crop.size, maxCropSize || 1))
-  const safeCropX = Math.min(crop.x, Math.max(0, imageSize.width - safeCropSize))
-  const safeCropY = Math.min(crop.y, Math.max(0, imageSize.height - safeCropSize))
+  const safeCropWidth = Math.max(1, Math.min(crop.width, imageSize.width || 1))
+  const safeCropHeight = Math.max(1, Math.min(crop.height, imageSize.height || 1))
+  const safeCropX = Math.min(crop.x, Math.max(0, imageSize.width - safeCropWidth))
+  const safeCropY = Math.min(crop.y, Math.max(0, imageSize.height - safeCropHeight))
+  const cropPercent = {
+    x: imageSize.width ? (safeCropX / imageSize.width) * 100 : 0,
+    y: imageSize.height ? (safeCropY / imageSize.height) * 100 : 0,
+    width: imageSize.width ? (safeCropWidth / imageSize.width) * 100 : 100,
+    height: imageSize.height ? (safeCropHeight / imageSize.height) * 100 : 100,
+  }
 
   useEffect(() => {
     if (!imageUrl || colors.length === 0) {
@@ -133,8 +172,8 @@ function App() {
         image,
         safeCropX,
         safeCropY,
-        safeCropSize,
-        safeCropSize,
+        safeCropWidth,
+        safeCropHeight,
         0,
         0,
         columns,
@@ -155,7 +194,7 @@ function App() {
       setCells(rendered)
     }
     image.src = imageUrl
-  }, [columns, colors, imageUrl, rows, safeCropSize, safeCropX, safeCropY])
+  }, [columns, colors, imageUrl, rows, safeCropHeight, safeCropWidth, safeCropX, safeCropY])
 
   const colorCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -233,11 +272,92 @@ function App() {
       setCrop({
         x: Math.floor((image.width - size) / 2),
         y: Math.floor((image.height - size) / 2),
-        size,
+        width: size,
+        height: size,
       })
       setMessage(`Loaded ${file.name}`)
     }
     image.src = url
+  }
+
+  const startCropDrag = (action: CropAction, event: PointerEvent<HTMLElement>) => {
+    const stage = cropStageRef.current
+    if (!stage || imageSize.width === 0 || imageSize.height === 0) return
+
+    const rect = stage.getBoundingClientRect()
+    cropDragRef.current = {
+      action,
+      crop: {
+        x: safeCropX,
+        y: safeCropY,
+        width: safeCropWidth,
+        height: safeCropHeight,
+      },
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      scaleX: imageSize.width / rect.width,
+      scaleY: imageSize.height / rect.height,
+    }
+    stage.setPointerCapture(event.pointerId)
+    event.preventDefault()
+  }
+
+  const updateCropDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = cropDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+
+    const minSize = Math.max(8, Math.min(imageSize.width, imageSize.height) * 0.04)
+    const deltaX = (event.clientX - drag.startX) * drag.scaleX
+    const deltaY = (event.clientY - drag.startY) * drag.scaleY
+    let nextX = drag.crop.x
+    let nextY = drag.crop.y
+    let nextWidth = drag.crop.width
+    let nextHeight = drag.crop.height
+
+    if (drag.action === 'move') {
+      nextX = clamp(drag.crop.x + deltaX, 0, imageSize.width - drag.crop.width)
+      nextY = clamp(drag.crop.y + deltaY, 0, imageSize.height - drag.crop.height)
+    } else {
+      if (drag.action.includes('west')) {
+        const right = drag.crop.x + drag.crop.width
+        nextX = clamp(drag.crop.x + deltaX, 0, right - minSize)
+        nextWidth = right - nextX
+      }
+      if (drag.action.includes('east')) {
+        nextWidth = clamp(
+          drag.crop.width + deltaX,
+          minSize,
+          imageSize.width - drag.crop.x,
+        )
+      }
+      if (drag.action.includes('north')) {
+        const bottom = drag.crop.y + drag.crop.height
+        nextY = clamp(drag.crop.y + deltaY, 0, bottom - minSize)
+        nextHeight = bottom - nextY
+      }
+      if (drag.action.includes('south')) {
+        nextHeight = clamp(
+          drag.crop.height + deltaY,
+          minSize,
+          imageSize.height - drag.crop.y,
+        )
+      }
+    }
+
+    setCrop({
+      x: Math.round(nextX),
+      y: Math.round(nextY),
+      width: Math.round(nextWidth),
+      height: Math.round(nextHeight),
+    })
+  }
+
+  const endCropDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = cropDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    cropDragRef.current = null
+    event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
   const addColor = () => {
@@ -384,64 +504,73 @@ function App() {
             <h2>Crop</h2>
             {imageUrl ? (
               <>
-                <div className="crop-preview">
+                <div
+                  className="crop-stage"
+                  ref={cropStageRef}
+                  onPointerMove={updateCropDrag}
+                  onPointerUp={endCropDrag}
+                  onPointerCancel={endCropDrag}
+                >
                   <img
                     src={imageUrl}
-                    alt="Crop preview"
+                    alt="Uploaded crop source"
+                    draggable="false"
+                  />
+                  <div className="crop-dim crop-dim-top" style={{ height: `${cropPercent.y}%` }} />
+                  <div
+                    className="crop-dim crop-dim-right"
                     style={{
-                      width: `${(imageSize.width / safeCropSize) * 100}%`,
-                      height: `${(imageSize.height / safeCropSize) * 100}%`,
-                      transform: `translate(${
-                        (-safeCropX / safeCropSize) * 100
-                      }%, ${(-safeCropY / safeCropSize) * 100}%)`,
+                      left: `${cropPercent.x + cropPercent.width}%`,
+                      top: `${cropPercent.y}%`,
+                      height: `${cropPercent.height}%`,
                     }}
                   />
+                  <div
+                    className="crop-dim crop-dim-bottom"
+                    style={{ top: `${cropPercent.y + cropPercent.height}%` }}
+                  />
+                  <div
+                    className="crop-dim crop-dim-left"
+                    style={{
+                      width: `${cropPercent.x}%`,
+                      top: `${cropPercent.y}%`,
+                      height: `${cropPercent.height}%`,
+                    }}
+                  />
+                  <div
+                    className="crop-box"
+                    style={{
+                      left: `${cropPercent.x}%`,
+                      top: `${cropPercent.y}%`,
+                      width: `${cropPercent.width}%`,
+                      height: `${cropPercent.height}%`,
+                    }}
+                    onPointerDown={(event) => startCropDrag('move', event)}
+                  >
+                    {[
+                      'north',
+                      'east',
+                      'south',
+                      'west',
+                      'north-east',
+                      'south-east',
+                      'south-west',
+                      'north-west',
+                    ].map((handle) => (
+                      <span
+                        className={`crop-handle crop-handle-${handle}`}
+                        key={handle}
+                        onPointerDown={(event) => {
+                          event.stopPropagation()
+                          startCropDrag(handle as CropAction, event)
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <label className="field">
-                  <span>Left</span>
-                  <input
-                    max={Math.max(0, imageSize.width - safeCropSize)}
-                    min="0"
-                    type="range"
-                    value={safeCropX}
-                    onChange={(event) =>
-                      setCrop((current) => ({
-                        ...current,
-                        x: Number(event.target.value),
-                      }))
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>Top</span>
-                  <input
-                    max={Math.max(0, imageSize.height - safeCropSize)}
-                    min="0"
-                    type="range"
-                    value={safeCropY}
-                    onChange={(event) =>
-                      setCrop((current) => ({
-                        ...current,
-                        y: Number(event.target.value),
-                      }))
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>Crop size</span>
-                  <input
-                    max={maxCropSize}
-                    min="8"
-                    type="range"
-                    value={safeCropSize}
-                    onChange={(event) =>
-                      setCrop((current) => ({
-                        ...current,
-                        size: Number(event.target.value),
-                      }))
-                    }
-                  />
-                </label>
+                <p className="empty-note">
+                  Drag the rectangle to move it, or drag an edge or corner to resize.
+                </p>
               </>
             ) : (
               <p className="empty-note">Upload a picture to enable crop controls.</p>

@@ -136,19 +136,230 @@ button:disabled {
   font-size: 14px;
 }
 
-.crop-preview {
+.crop-stage {
   position: relative;
-  aspect-ratio: 1;
   overflow: hidden;
   border: 1px solid #c7cfdd;
   border-radius: 8px;
   background: #eef2f7;
+  touch-action: none;
+  user-select: none;
 }
 
-.crop-preview img {
+.crop-stage img {
   display: block;
+  width: 100%;
+  height: auto;
   max-width: none;
-  transform-origin: top left;
+  pointer-events: none;
+}
+
+.crop-dim,
+.crop-box {
+  position: absolute;
+}
+
+.crop-dim {
+  background: rgba(15, 23, 42, 0.48);
+  pointer-events: none;
+}
+
+.crop-dim-top,
+.crop-dim-bottom {
+  right: 0;
+  left: 0;
+}
+
+.crop-dim-top {
+  top: 0;
+}
+
+.crop-dim-bottom {
+  bottom: 0;
+}
+
+.crop-dim-right {
+  right: 0;
+}
+
+.crop-dim-left {
+  left: 0;
+}
+
+.crop-box {
+  border: 2px solid #ffffff;
+  box-shadow:
+    0 0 0 1px #4f46e5,
+    0 10px 26px rgba(15, 23, 42, 0.28);
+  cursor: move;
+}
+
+.crop-box::before,
+.crop-box::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.crop-box::before {
+  top: 33.333%;
+  right: 0;
+  left: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+  height: 33.333%;
+}
+
+.crop-box::after {
+  top: 0;
+  bottom: 0;
+  left: 33.333%;
+  border-left: 1px solid rgba(255, 255, 255, 0.7);
+  border-right: 1px solid rgba(255, 255, 255, 0.7);
+  width: 33.333%;
+}
+
+.crop-handle {
+  position: absolute;
+  z-index: 1;
+}
+
+.crop-handle::after {
+  content: '';
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #4f46e5;
+  border-radius: 999px;
+}
+
+.crop-handle-north,
+.crop-handle-south {
+  left: 50%;
+  width: 44px;
+  height: 24px;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.crop-handle-north::after,
+.crop-handle-south::after {
+  left: 11px;
+  width: 22px;
+  height: 10px;
+}
+
+.crop-handle-north {
+  top: -13px;
+}
+
+.crop-handle-north::after {
+  top: 3px;
+}
+
+.crop-handle-south {
+  bottom: -13px;
+}
+
+.crop-handle-south::after {
+  bottom: 3px;
+}
+
+.crop-handle-east,
+.crop-handle-west {
+  top: 50%;
+  width: 24px;
+  height: 44px;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.crop-handle-east::after,
+.crop-handle-west::after {
+  top: 11px;
+  width: 10px;
+  height: 22px;
+}
+
+.crop-handle-east {
+  right: -13px;
+}
+
+.crop-handle-east::after {
+  right: 3px;
+}
+
+.crop-handle-west {
+  left: -13px;
+}
+
+.crop-handle-west::after {
+  left: 3px;
+}
+
+.crop-handle-north-east,
+.crop-handle-south-east,
+.crop-handle-south-west,
+.crop-handle-north-west {
+  width: 28px;
+  height: 28px;
+}
+
+.crop-handle-north-east::after,
+.crop-handle-south-east::after,
+.crop-handle-south-west::after,
+.crop-handle-north-west::after {
+  width: 14px;
+  height: 14px;
+}
+
+.crop-handle-north-east,
+.crop-handle-south-west {
+  cursor: nesw-resize;
+}
+
+.crop-handle-south-east,
+.crop-handle-north-west {
+  cursor: nwse-resize;
+}
+
+.crop-handle-north-east {
+  top: -15px;
+  right: -15px;
+}
+
+.crop-handle-north-east::after {
+  top: 3px;
+  right: 3px;
+}
+
+.crop-handle-south-east {
+  right: -15px;
+  bottom: -15px;
+}
+
+.crop-handle-south-east::after {
+  right: 3px;
+  bottom: 3px;
+}
+
+.crop-handle-south-west {
+  bottom: -15px;
+  left: -15px;
+}
+
+.crop-handle-south-west::after {
+  bottom: 3px;
+  left: 3px;
+}
+
+.crop-handle-north-west {
+  top: -15px;
+  left: -15px;
+}
+
+.crop-handle-north-west::after {
+  top: 3px;
+  left: 3px;
 }
 
 .palette-list,
