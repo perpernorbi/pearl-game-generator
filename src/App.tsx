@@ -49,6 +49,7 @@ function App() {
   })
   const [message, setMessage] = useState('')
 
+  const cropAspect = columns / rows
   const safeCropWidth = Math.max(1, Math.min(crop.width, imageSize.width || 1))
   const safeCropHeight = Math.max(1, Math.min(crop.height, imageSize.height || 1))
   const safeCropX = Math.min(crop.x, Math.max(0, imageSize.width - safeCropWidth))
@@ -155,17 +156,36 @@ function App() {
         if (current) URL.revokeObjectURL(current)
         return url
       })
-      const size = Math.min(image.width, image.height)
+      const nextImageSize = { width: image.width, height: image.height }
       setImageSize({ width: image.width, height: image.height })
-      setCrop({
-        x: Math.floor((image.width - size) / 2),
-        y: Math.floor((image.height - size) / 2),
-        width: size,
-        height: size,
-      })
+      setCrop(createCenteredAspectCrop(nextImageSize, cropAspect))
       setMessage(`Loaded ${file.name}`)
     }
     image.src = url
+  }
+
+  const setGridColumns = (nextColumns: number) => {
+    const normalizedColumns = Math.max(1, nextColumns)
+    setColumns(normalizedColumns)
+    setCrop((current) =>
+      normalizeCropToAspect(
+        current,
+        imageSize,
+        normalizedColumns / Math.max(1, rows),
+      ),
+    )
+  }
+
+  const setGridRows = (nextRows: number) => {
+    const normalizedRows = Math.max(1, nextRows)
+    setRows(normalizedRows)
+    setCrop((current) =>
+      normalizeCropToAspect(
+        current,
+        imageSize,
+        Math.max(1, columns) / normalizedRows,
+      ),
+    )
   }
 
   const startCropDrag = (action: CropAction, event: PointerEvent<HTMLElement>) => {
@@ -198,46 +218,29 @@ function App() {
     const minSize = Math.max(8, Math.min(imageSize.width, imageSize.height) * 0.04)
     const deltaX = (event.clientX - drag.startX) * drag.scaleX
     const deltaY = (event.clientY - drag.startY) * drag.scaleY
-    let nextX = drag.crop.x
-    let nextY = drag.crop.y
-    let nextWidth = drag.crop.width
-    let nextHeight = drag.crop.height
-
-    if (drag.action === 'move') {
-      nextX = clamp(drag.crop.x + deltaX, 0, imageSize.width - drag.crop.width)
-      nextY = clamp(drag.crop.y + deltaY, 0, imageSize.height - drag.crop.height)
-    } else {
-      if (drag.action.includes('west')) {
-        const right = drag.crop.x + drag.crop.width
-        nextX = clamp(drag.crop.x + deltaX, 0, right - minSize)
-        nextWidth = right - nextX
-      }
-      if (drag.action.includes('east')) {
-        nextWidth = clamp(
-          drag.crop.width + deltaX,
-          minSize,
-          imageSize.width - drag.crop.x,
-        )
-      }
-      if (drag.action.includes('north')) {
-        const bottom = drag.crop.y + drag.crop.height
-        nextY = clamp(drag.crop.y + deltaY, 0, bottom - minSize)
-        nextHeight = bottom - nextY
-      }
-      if (drag.action.includes('south')) {
-        nextHeight = clamp(
-          drag.crop.height + deltaY,
-          minSize,
-          imageSize.height - drag.crop.y,
-        )
-      }
-    }
+    const nextCrop =
+      drag.action === 'move'
+        ? {
+            x: clamp(drag.crop.x + deltaX, 0, imageSize.width - drag.crop.width),
+            y: clamp(drag.crop.y + deltaY, 0, imageSize.height - drag.crop.height),
+            width: drag.crop.width,
+            height: drag.crop.height,
+          }
+        : resizeAspectCrop(
+            drag.crop,
+            drag.action,
+            deltaX,
+            deltaY,
+            imageSize,
+            cropAspect,
+            minSize,
+          )
 
     setCrop({
-      x: Math.round(nextX),
-      y: Math.round(nextY),
-      width: Math.round(nextWidth),
-      height: Math.round(nextHeight),
+      x: Math.round(nextCrop.x),
+      y: Math.round(nextCrop.y),
+      width: Math.round(nextCrop.width),
+      height: Math.round(nextCrop.height),
     })
   }
 
@@ -416,9 +419,9 @@ function App() {
           onEndCropDrag={endCropDrag}
           onLoadSavedWork={loadSavedWork}
           onRenameSavedWork={renameSavedWork}
-          onSetColumns={setColumns}
+          onSetColumns={setGridColumns}
           onSetProjectName={setProjectName}
-          onSetRows={setRows}
+          onSetRows={setGridRows}
           onStartCropDrag={startCropDrag}
           onUpdateCropDrag={updateCropDrag}
           onUpload={handleUpload}
@@ -491,6 +494,117 @@ const createCroppedImageDataUrl = (
     croppedCanvas.height,
   )
   return croppedCanvas.toDataURL('image/jpeg', 0.82)
+}
+
+const createCenteredAspectCrop = (
+  imageSize: { width: number; height: number },
+  aspect: number,
+): Crop => {
+  const width = Math.min(imageSize.width, imageSize.height * aspect)
+  const height = width / aspect
+  return {
+    x: Math.round((imageSize.width - width) / 2),
+    y: Math.round((imageSize.height - height) / 2),
+    width: Math.round(width),
+    height: Math.round(height),
+  }
+}
+
+const normalizeCropToAspect = (
+  crop: Crop,
+  imageSize: { width: number; height: number },
+  aspect: number,
+): Crop => {
+  if (imageSize.width === 0 || imageSize.height === 0) return crop
+
+  const centerX = crop.x + crop.width / 2
+  const centerY = crop.y + crop.height / 2
+  const maxWidth = Math.min(imageSize.width, imageSize.height * aspect)
+  const nextWidth = Math.min(crop.width, maxWidth)
+  const nextHeight = nextWidth / aspect
+  const nextX = clamp(centerX - nextWidth / 2, 0, imageSize.width - nextWidth)
+  const nextY = clamp(centerY - nextHeight / 2, 0, imageSize.height - nextHeight)
+
+  return {
+    x: Math.round(nextX),
+    y: Math.round(nextY),
+    width: Math.round(nextWidth),
+    height: Math.round(nextHeight),
+  }
+}
+
+const resizeAspectCrop = (
+  crop: Crop,
+  action: CropAction,
+  deltaX: number,
+  deltaY: number,
+  imageSize: { width: number; height: number },
+  aspect: number,
+  minSize: number,
+): Crop => {
+  const hasWest = action.includes('west')
+  const hasEast = action.includes('east')
+  const hasNorth = action.includes('north')
+  const hasSouth = action.includes('south')
+  const useVerticalDriver =
+    (hasNorth || hasSouth) &&
+    (!hasEast && !hasWest ? true : Math.abs(deltaY) > Math.abs(deltaX))
+
+  const anchor = {
+    left: crop.x,
+    right: crop.x + crop.width,
+    centerX: crop.x + crop.width / 2,
+    top: crop.y,
+    bottom: crop.y + crop.height,
+    centerY: crop.y + crop.height / 2,
+  }
+
+  let desiredWidth = crop.width
+  if (useVerticalDriver) {
+    const desiredHeight = hasNorth
+      ? crop.height - deltaY
+      : hasSouth
+        ? crop.height + deltaY
+        : crop.height
+    desiredWidth = desiredHeight * aspect
+  } else if (hasWest) {
+    desiredWidth = crop.width - deltaX
+  } else if (hasEast) {
+    desiredWidth = crop.width + deltaX
+  }
+
+  const minWidth = Math.max(minSize, minSize * aspect)
+  const maxWidthFromX = hasWest
+    ? anchor.right
+    : hasEast
+      ? imageSize.width - anchor.left
+      : 2 * Math.min(anchor.centerX, imageSize.width - anchor.centerX)
+  const maxHeightFromY = hasNorth
+    ? anchor.bottom
+    : hasSouth
+      ? imageSize.height - anchor.top
+      : 2 * Math.min(anchor.centerY, imageSize.height - anchor.centerY)
+  const maxWidth = Math.max(1, Math.min(maxWidthFromX, maxHeightFromY * aspect))
+  const width = clamp(desiredWidth, Math.min(minWidth, maxWidth), maxWidth)
+  const height = width / aspect
+
+  const x = hasWest
+    ? anchor.right - width
+    : hasEast
+      ? anchor.left
+      : anchor.centerX - width / 2
+  const y = hasNorth
+    ? anchor.bottom - height
+    : hasSouth
+      ? anchor.top
+      : anchor.centerY - height / 2
+
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(width),
+    height: Math.round(height),
+  }
 }
 
 export default App
