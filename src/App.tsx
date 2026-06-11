@@ -43,7 +43,9 @@ type SavedWork = {
   columns: number
   rows: number
   colors: PearlColor[]
-  cells: string[]
+  cellData?: string
+  cells?: string[]
+  version?: number
 }
 
 const COOKIE_NAME = 'pearlDesignerWorks'
@@ -111,6 +113,47 @@ const makeId = () => Math.random().toString(36).slice(2, 10)
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
+
+const encodeCells = (cells: string[], colors: PearlColor[]) =>
+  cells
+    .map((cell) => {
+      const index = colors.findIndex((color) => color.hex === cell)
+      return (index < 0 ? 0 : index).toString(36).padStart(2, '0')
+    })
+    .join('')
+
+const decodeSavedCells = (work: SavedWork) => {
+  if (work.cellData) {
+    const cellIndexes = work.cellData.match(/.{1,2}/g) ?? []
+    return cellIndexes.map((value) => {
+      const colorIndex = Number.parseInt(value, 36)
+      return work.colors[colorIndex]?.hex ?? work.colors[0]?.hex ?? '#ffffff'
+    })
+  }
+
+  return work.cells ?? []
+}
+
+const compactSavedWork = (work: SavedWork): SavedWork => ({
+  id: work.id,
+  name: work.name,
+  savedAt: work.savedAt,
+  columns: work.columns,
+  rows: work.rows,
+  colors: work.colors,
+  cellData: work.cellData ?? encodeCells(decodeSavedCells(work), work.colors),
+  version: 2,
+})
+
+const serializeSavedWorks = (works: SavedWork[]) => {
+  const next = works.map(compactSavedWork)
+  while (next.length > 1 && encodeURIComponent(JSON.stringify(next)).length > 3800) {
+    next.pop()
+  }
+
+  const serialized = JSON.stringify(next)
+  return encodeURIComponent(serialized).length > 3800 ? null : serialized
+}
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -412,18 +455,19 @@ function App() {
       columns,
       rows,
       colors,
-      cells,
+      cellData: encodeCells(cells, colors),
+      version: 2,
     }
     const next = [savedWork, ...savedWorks].slice(0, 8)
-    const serialized = JSON.stringify(next)
-    if (encodeURIComponent(serialized).length > 3800) {
+    const serialized = serializeSavedWorks(next)
+    if (!serialized) {
       setMessage(
-        'This design is too large for a browser cookie. Try a smaller grid before saving.',
+        'This design is too large for a browser cookie. Try fewer colors or a smaller grid before saving.',
       )
       return
     }
     setCookie(COOKIE_NAME, serialized)
-    setSavedWorks(next)
+    setSavedWorks(JSON.parse(serialized))
     setMessage('Saved this finished work to cookies.')
   }
 
@@ -432,10 +476,34 @@ function App() {
     setColumns(work.columns)
     setRows(work.rows)
     setColors(work.colors)
-    setCells(work.cells)
+    setCells(decodeSavedCells(work))
     setImageUrl('')
     setImageSize({ width: 0, height: 0 })
     setMessage(`Loaded saved work: ${work.name}`)
+  }
+
+  const persistSavedWorks = (works: SavedWork[], messageText: string) => {
+    const serialized = serializeSavedWorks(works)
+    if (!serialized) {
+      setMessage('Could not update saved works because the cookie would be too large.')
+      return
+    }
+    setCookie(COOKIE_NAME, serialized)
+    setSavedWorks(JSON.parse(serialized))
+    setMessage(messageText)
+  }
+
+  const renameSavedWork = (id: string, name: string) => {
+    const next = savedWorks.map((work) =>
+      work.id === id ? { ...work, name: name || 'Untitled template' } : work,
+    )
+    persistSavedWorks(next, 'Renamed saved work.')
+  }
+
+  const deleteSavedWork = (id: string) => {
+    const work = savedWorks.find((saved) => saved.id === id)
+    const next = savedWorks.filter((saved) => saved.id !== id)
+    persistSavedWorks(next, work ? `Deleted saved work: ${work.name}` : 'Deleted saved work.')
   }
 
   return (
@@ -629,16 +697,26 @@ function App() {
             ) : (
               <div className="saved-list">
                 {savedWorks.map((work) => (
-                  <button
-                    type="button"
-                    key={work.id}
-                    onClick={() => loadSavedWork(work)}
-                  >
-                    <strong>{work.name}</strong>
+                  <div className="saved-item" key={work.id}>
+                    <label>
+                      <span className="sr-only">Saved work name</span>
+                      <input
+                        value={work.name}
+                        onChange={(event) =>
+                          renameSavedWork(work.id, event.target.value)
+                        }
+                      />
+                    </label>
                     <span>
                       {work.columns} x {work.rows}
                     </span>
-                  </button>
+                    <button type="button" onClick={() => loadSavedWork(work)}>
+                      Load
+                    </button>
+                    <button type="button" onClick={() => deleteSavedWork(work.id)}>
+                      Delete
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

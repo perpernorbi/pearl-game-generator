@@ -369,6 +369,15 @@ button:disabled {
   gap: 8px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 .palette-item,
 .add-color {
   display: grid;
@@ -405,16 +414,36 @@ button:disabled {
   font-size: 13px;
 }
 
-.saved-list button {
-  display: flex;
+.saved-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  text-align: left;
+  gap: 8px;
 }
 
-.saved-list span {
+.saved-item label,
+.saved-item input {
+  min-width: 0;
+}
+
+.saved-item input {
+  width: 100%;
+  border: 1px solid #c7cfdd;
+  border-radius: 7px;
+  padding: 8px 9px;
+  background: #ffffff;
+  color: #172033;
+}
+
+.saved-item span:not(.sr-only) {
   color: #667085;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.saved-item button {
+  min-height: 34px;
+  padding: 6px 9px;
   font-size: 13px;
 }
 
@@ -531,5 +560,14 @@ button:disabled {
 
   .preview-area {
     padding: 18px;
+  }
+
+  .saved-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .saved-item span:not(.sr-only) {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }
