@@ -58,6 +58,7 @@ const defaultColors: PearlColor[] = [
   { id: 'yellow', name: 'Yellow', hex: '#facc15' },
   { id: 'green', name: 'Green', hex: '#16a34a' },
   { id: 'blue', name: 'Blue', hex: '#2563eb' },
+  { id: 'purple', name: 'Purple', hex: '#7c3aed' },
   { id: 'pink', name: 'Pink', hex: '#ec4899' },
 ]
 
