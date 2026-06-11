@@ -114,6 +114,13 @@ const makeId = () => Math.random().toString(36).slice(2, 10)
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
 
+const TrashIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M9 3h6l1 2h4v2H4V5h4l1-2Z" />
+    <path d="M6 9h12l-1 12H7L6 9Zm4 2v8h2v-8h-2Zm4 0v8h2v-8h-2Z" />
+  </svg>
+)
+
 const encodeCells = (cells: string[], colors: PearlColor[]) =>
   cells
     .map((cell) => {
@@ -696,51 +703,6 @@ function App() {
           </section>
 
           <section className="panel">
-            <h2>Pearl colors</h2>
-            <div className="palette-list">
-              {colors.map((color) => (
-                <div className="palette-item" key={color.id}>
-                  <input
-                    aria-label={`${color.name} color`}
-                    type="color"
-                    value={color.hex}
-                    onChange={(event) =>
-                      updateColor(color.id, { hex: event.target.value })
-                    }
-                  />
-                  <input
-                    aria-label={`${color.name} name`}
-                    value={color.name}
-                    onChange={(event) =>
-                      updateColor(color.id, { name: event.target.value })
-                    }
-                  />
-                  <span>{colorCounts.find((item) => item.id === color.id)?.count ?? 0}</span>
-                  <button type="button" onClick={() => removeColor(color.id)}>
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="add-color">
-              <input
-                aria-label="New color"
-                type="color"
-                value={newColorHex}
-                onChange={(event) => setNewColorHex(event.target.value)}
-              />
-              <input
-                aria-label="New color name"
-                value={newColorName}
-                onChange={(event) => setNewColorName(event.target.value)}
-              />
-              <button type="button" onClick={addColor}>
-                Add color
-              </button>
-            </div>
-          </section>
-
-          <section className="panel">
             <h2>Saved works</h2>
             {savedWorks.length === 0 ? (
               <p className="empty-note">No cookie-saved designs yet.</p>
@@ -763,8 +725,14 @@ function App() {
                     <button type="button" onClick={() => loadSavedWork(work)}>
                       Load
                     </button>
-                    <button type="button" onClick={() => deleteSavedWork(work.id)}>
-                      Delete
+                    <button
+                      className="icon-button"
+                      type="button"
+                      aria-label={`Delete ${work.name}`}
+                      title="Delete"
+                      onClick={() => deleteSavedWork(work.id)}
+                    >
+                      <TrashIcon />
                     </button>
                   </div>
                 ))}
@@ -784,54 +752,103 @@ function App() {
             </div>
           </div>
 
-          {cells.length > 0 ? (
-            <div
-              className="pearl-grid"
-              style={{
-                gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                aspectRatio: `${columns} / ${rows}`,
-              }}
-            >
-              {croppedImageDataUrl ? (
-                <img
-                  className="grid-image-guide"
-                  src={croppedImageDataUrl}
-                  alt=""
-                  style={{ opacity: imageOpacity / 100 }}
-                />
-              ) : null}
-              {cells.map((cell, index) => (
-                <span
-                  className="pearl"
-                  key={`${cell}-${index}`}
-                  style={{ backgroundColor: cell }}
-                  title={`Row ${Math.floor(index / columns) + 1}, column ${
-                    (index % columns) + 1
-                  }`}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="empty-preview">
-              <p>Upload an image to generate the pearl pattern.</p>
-            </div>
-          )}
-
-          {cells.length > 0 ? (
-            <section className="counts">
-              <h2>Pearl counts</h2>
-              <div>
-                {colorCounts
-                  .filter((color) => color.count > 0)
-                  .map((color) => (
-                    <span key={color.id}>
-                      <i style={{ backgroundColor: color.hex }} />
-                      {color.name}: {color.count}
-                    </span>
+          <div className="preview-layout">
+            <div className="pattern-column">
+              {cells.length > 0 ? (
+                <div
+                  className="pearl-grid"
+                  style={{
+                    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                    aspectRatio: `${columns} / ${rows}`,
+                  }}
+                >
+                  {croppedImageDataUrl ? (
+                    <img
+                      className="grid-image-guide"
+                      src={croppedImageDataUrl}
+                      alt=""
+                      style={{ opacity: imageOpacity / 100 }}
+                    />
+                  ) : null}
+                  {cells.map((cell, index) => (
+                    <span
+                      className="pearl"
+                      key={`${cell}-${index}`}
+                      style={{ backgroundColor: cell }}
+                      title={`Row ${Math.floor(index / columns) + 1}, column ${
+                        (index % columns) + 1
+                      }`}
+                    />
                   ))}
+                </div>
+              ) : (
+                <div className="empty-preview">
+                  <p>Upload an image to generate the pearl pattern.</p>
+                </div>
+              )}
+            </div>
+
+            <section className="counts">
+              <div className="counts-header">
+                <div>
+                  <h2>Pearl colors and counts</h2>
+                  <p>
+                    Edit the available colors here. Counts update from the current grid.
+                  </p>
+                </div>
+              </div>
+              <div className="color-editor">
+                {colors.map((color) => (
+                  <div className="color-row" key={color.id}>
+                    <input
+                      aria-label={`${color.name} color`}
+                      type="color"
+                      value={color.hex}
+                      onChange={(event) =>
+                        updateColor(color.id, { hex: event.target.value })
+                      }
+                    />
+                    <input
+                      aria-label={`${color.name} name`}
+                      value={color.name}
+                      onChange={(event) =>
+                        updateColor(color.id, { name: event.target.value })
+                      }
+                    />
+                    <strong>
+                      {colorCounts.find((item) => item.id === color.id)?.count ?? 0}
+                    </strong>
+                    <button
+                      className="icon-button"
+                      type="button"
+                      aria-label={`Remove ${color.name}`}
+                      title="Remove"
+                      onClick={() => removeColor(color.id)}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                ))}
+                <div className="color-row color-row-new">
+                  <input
+                    aria-label="New color"
+                    type="color"
+                    value={newColorHex}
+                    onChange={(event) => setNewColorHex(event.target.value)}
+                  />
+                  <input
+                    aria-label="New color name"
+                    value={newColorName}
+                    onChange={(event) => setNewColorName(event.target.value)}
+                  />
+                  <span />
+                  <button type="button" onClick={addColor}>
+                    Add color
+                  </button>
+                </div>
               </div>
             </section>
-          ) : null}
+          </div>
         </section>
       </section>
 
