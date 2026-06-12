@@ -39,7 +39,8 @@
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -545,6 +546,42 @@ button:disabled {
   padding-bottom: 16px;
   margin-bottom: 16px;
   border-bottom: 1px solid #e6eaf1;
+}
+
+.detected-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detected-color-row {
+  display: grid;
+  grid-template-columns: 32px 78px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.detected-swatch {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #c7cfdd;
+  border-radius: 7px;
+}
+
+.detected-hex {
+  color: #667085;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+.detected-color-row select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #c7cfdd;
+  border-radius: 7px;
+  padding: 7px 8px;
+  background: #ffffff;
+  color: #172033;
 }
 
 .counts-header p {

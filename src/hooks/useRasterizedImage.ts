@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Crop, PearlColor } from '../types'
-import { nearestPearl } from '../utils/color'
+import type { Crop, DetectedColor, PearlColor } from '../types'
+import { nearestHex, quantizeImageData } from '../utils/posterize'
 
 type UseRasterizedImageOptions = {
   colors: PearlColor[]
   columns: number
   crop: Crop
+  colorMappings: Record<string, string>
   imageUrl: string
+  posterizeColorCount: number
   rows: number
 }
 
@@ -14,12 +16,15 @@ export function useRasterizedImage({
   colors,
   columns,
   crop,
+  colorMappings,
   imageUrl,
+  posterizeColorCount,
   rows,
 }: UseRasterizedImageOptions) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [cells, setCells] = useState<string[]>([])
   const [croppedImageDataUrl, setCroppedImageDataUrl] = useState('')
+  const [detectedColors, setDetectedColors] = useState<DetectedColor[]>([])
   const { height: cropHeight, width: cropWidth, x: cropX, y: cropY } = crop
 
   useEffect(() => {
@@ -30,12 +35,13 @@ export function useRasterizedImage({
       const canvas = canvasRef.current
       if (!canvas) return
 
-      canvas.width = columns
-      canvas.height = rows
+      const posterizedSize = getPosterizedCanvasSize(cropWidth, cropHeight)
+      canvas.width = posterizedSize.width
+      canvas.height = posterizedSize.height
       const context = canvas.getContext('2d', { willReadFrequently: true })
       if (!context) return
 
-      context.clearRect(0, 0, columns, rows)
+      context.clearRect(0, 0, posterizedSize.width, posterizedSize.height)
       context.drawImage(
         image,
         cropX,
@@ -44,37 +50,109 @@ export function useRasterizedImage({
         cropHeight,
         0,
         0,
-        columns,
-        rows,
+        posterizedSize.width,
+        posterizedSize.height,
       )
 
       setCroppedImageDataUrl(
         createCroppedImageDataUrl(image, cropX, cropY, cropWidth, cropHeight),
       )
 
-      const imageData = context.getImageData(0, 0, columns, rows).data
-      const rendered = Array.from({ length: columns * rows }, (_, index) => {
-        const offset = index * 4
-        const alpha = imageData[offset + 3] / 255
-        const pixel = {
-          r: Math.round(imageData[offset] * alpha + 255 * (1 - alpha)),
-          g: Math.round(imageData[offset + 1] * alpha + 255 * (1 - alpha)),
-          b: Math.round(imageData[offset + 2] * alpha + 255 * (1 - alpha)),
-        }
-        return nearestPearl(pixel, colors).hex
+      const imageData = context.getImageData(
+        0,
+        0,
+        posterizedSize.width,
+        posterizedSize.height,
+      )
+      const posterized = quantizeImageData(imageData, posterizeColorCount)
+      setDetectedColors(posterized.colors)
+
+      const rendered = Array.from({ length: columns * rows }, (_, cellIndex) => {
+        const dominantColor = getDominantDetectedColor(
+          posterized.indexes,
+          posterized.colors,
+          posterizedSize.width,
+          posterizedSize.height,
+          columns,
+          rows,
+          cellIndex,
+        )
+        const mappedColorId = colorMappings[dominantColor.hex]
+        return (
+          colors.find((color) => color.id === mappedColorId)?.hex ??
+          nearestHex(dominantColor.hex, colors).hex
+        )
       })
       setCells(rendered)
     }
     image.src = imageUrl
-  }, [colors, columns, cropHeight, cropWidth, cropX, cropY, imageUrl, rows])
+  }, [
+    colorMappings,
+    colors,
+    columns,
+    cropHeight,
+    cropWidth,
+    cropX,
+    cropY,
+    imageUrl,
+    posterizeColorCount,
+    rows,
+  ])
 
   return {
     canvasRef,
     cells,
     croppedImageDataUrl,
+    detectedColors,
     setCells,
     setCroppedImageDataUrl,
+    setDetectedColors,
   }
+}
+
+const getPosterizedCanvasSize = (cropWidth: number, cropHeight: number) => {
+  const maxSize = 420
+  const ratio = cropWidth / cropHeight
+  return {
+    width: Math.max(1, Math.round(ratio >= 1 ? maxSize : maxSize * ratio)),
+    height: Math.max(1, Math.round(ratio >= 1 ? maxSize / ratio : maxSize)),
+  }
+}
+
+const getDominantDetectedColor = (
+  indexes: Uint16Array,
+  colors: DetectedColor[],
+  sourceWidth: number,
+  sourceHeight: number,
+  columns: number,
+  rows: number,
+  cellIndex: number,
+) => {
+  const column = cellIndex % columns
+  const row = Math.floor(cellIndex / columns)
+  const xStart = Math.floor((column / columns) * sourceWidth)
+  const xEnd = Math.max(xStart + 1, Math.ceil(((column + 1) / columns) * sourceWidth))
+  const yStart = Math.floor((row / rows) * sourceHeight)
+  const yEnd = Math.max(yStart + 1, Math.ceil(((row + 1) / rows) * sourceHeight))
+  const counts = new Map<number, number>()
+
+  for (let y = yStart; y < yEnd; y += 1) {
+    for (let x = xStart; x < xEnd; x += 1) {
+      const colorIndex = indexes[y * sourceWidth + x]
+      counts.set(colorIndex, (counts.get(colorIndex) ?? 0) + 1)
+    }
+  }
+
+  let dominantIndex = 0
+  let dominantCount = -1
+  counts.forEach((count, colorIndex) => {
+    if (count > dominantCount) {
+      dominantCount = count
+      dominantIndex = colorIndex
+    }
+  })
+
+  return colors[dominantIndex] ?? colors[0] ?? { id: 'fallback', hex: '#ffffff', count: 0 }
 }
 
 const createCroppedImageDataUrl = (

@@ -23,6 +23,8 @@ function App() {
   const [selectedColorId, setSelectedColorId] = useState(defaultColors[0].id)
   const [newColorName, setNewColorName] = useState('New color')
   const [newColorHex, setNewColorHex] = useState('#7c3aed')
+  const [posterizeColorCount, setPosterizeColorCount] = useState(5)
+  const [colorMappings, setColorMappings] = useState<Record<string, string>>({})
   const [imageOpacity, setImageOpacity] = useState(35)
   const [projectName, setProjectName] = useState('Pearl template')
   const [message, setMessage] = useState('')
@@ -40,19 +42,6 @@ function App() {
     endCropDrag,
   } = useCrop()
   const {
-    canvasRef,
-    cells,
-    croppedImageDataUrl,
-    setCells,
-    setCroppedImageDataUrl,
-  } = useRasterizedImage({
-    colors,
-    columns,
-    crop: safeCrop,
-    imageUrl,
-    rows,
-  })
-  const {
     deleteSavedWork,
     renameSavedWork,
     savedWorks,
@@ -60,6 +49,32 @@ function App() {
   } = useSavedWorks(setMessage)
   const selectedColor =
     colors.find((color) => color.id === selectedColorId) ?? colors[0]
+  const effectiveColorMappings = useMemo(() => {
+    const next: Record<string, string> = {}
+    Object.entries(colorMappings).forEach(([hex, colorId]) => {
+      if (colors.some((color) => color.id === colorId)) {
+        next[hex] = colorId
+      }
+    })
+    return next
+  }, [colorMappings, colors])
+  const {
+    canvasRef,
+    cells,
+    croppedImageDataUrl,
+    detectedColors,
+    setCells,
+    setCroppedImageDataUrl,
+    setDetectedColors,
+  } = useRasterizedImage({
+    colorMappings: effectiveColorMappings,
+    colors,
+    columns,
+    crop: safeCrop,
+    imageUrl,
+    posterizeColorCount,
+    rows,
+  })
 
   const colorCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -127,6 +142,17 @@ function App() {
       setMessage(`Loaded ${file.name}`)
     }
     image.src = url
+  }
+
+  const setPosterizeCount = (count: number) => {
+    setPosterizeColorCount(Math.max(1, Math.min(24, Math.round(count))))
+  }
+
+  const mapDetectedColor = (detectedHex: string, pearlColorId: string) => {
+    setColorMappings((current) => ({
+      ...current,
+      [detectedHex]: pearlColorId,
+    }))
   }
 
   const setGridColumns = (nextColumns: number) => {
@@ -246,6 +272,8 @@ function App() {
     setSelectedColorId(work.colors[0]?.id ?? defaultColors[0].id)
     setCells(decodeSavedCells(work))
     setCroppedImageDataUrl('')
+    setDetectedColors([])
+    setColorMappings({})
     setImageUrl('')
     setImageSize({ width: 0, height: 0 })
     setMessage(`Loaded saved work: ${work.name}`)
@@ -313,17 +341,22 @@ function App() {
 
             <ColorPanel
               colorCounts={colorCounts}
+              colorMappings={effectiveColorMappings}
               colors={colors}
+              detectedColors={detectedColors}
               imageOpacity={imageOpacity}
               newColorHex={newColorHex}
               newColorName={newColorName}
               onAddColor={addColor}
+              onMapDetectedColor={mapDetectedColor}
               onRemoveColor={removeColor}
               onSelectColor={setSelectedColorId}
               onSetImageOpacity={setImageOpacity}
               onSetNewColorHex={setNewColorHex}
               onSetNewColorName={setNewColorName}
+              onSetPosterizeColorCount={setPosterizeCount}
               onUpdateColor={updateColor}
+              posterizeColorCount={posterizeColorCount}
               selectedColor={selectedColor}
             />
           </div>

@@ -4,6 +4,12 @@ export type PearlColor = {
   hex: string
 }
 
+export type DetectedColor = {
+  id: string
+  hex: string
+  count: number
+}
+
 export type ColorCount = PearlColor & {
   count: number
 }

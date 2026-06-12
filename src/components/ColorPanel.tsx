@@ -1,36 +1,47 @@
 import type { KeyboardEvent } from 'react'
-import type { ColorCount, PearlColor } from '../types'
+import type { ColorCount, DetectedColor, PearlColor } from '../types'
+import { nearestHex } from '../utils/posterize'
 import { TrashIcon } from './Icons'
 
 type ColorPanelProps = {
   colorCounts: ColorCount[]
+  colorMappings: Record<string, string>
   colors: PearlColor[]
+  detectedColors: DetectedColor[]
   imageOpacity: number
   newColorHex: string
   newColorName: string
   onAddColor: () => void
+  onMapDetectedColor: (detectedHex: string, pearlColorId: string) => void
   onRemoveColor: (id: string) => void
   onSelectColor: (id: string) => void
   onSetImageOpacity: (opacity: number) => void
   onSetNewColorHex: (hex: string) => void
   onSetNewColorName: (name: string) => void
+  onSetPosterizeColorCount: (count: number) => void
   onUpdateColor: (id: string, patch: Partial<PearlColor>) => void
+  posterizeColorCount: number
   selectedColor: PearlColor | undefined
 }
 
 export function ColorPanel({
   colorCounts,
+  colorMappings,
   colors,
+  detectedColors,
   imageOpacity,
   newColorHex,
   newColorName,
   onAddColor,
+  onMapDetectedColor,
   onRemoveColor,
   onSelectColor,
   onSetImageOpacity,
   onSetNewColorHex,
   onSetNewColorName,
+  onSetPosterizeColorCount,
   onUpdateColor,
+  posterizeColorCount,
   selectedColor,
 }: ColorPanelProps) {
   const selectColorByKeyboard = (
@@ -57,6 +68,51 @@ export function ColorPanel({
             onChange={(event) => onSetImageOpacity(Number(event.target.value))}
           />
         </label>
+      </div>
+      <div className="guide-control">
+        <h2>Posterize</h2>
+        <label className="field">
+          <span>Detected color count</span>
+          <input
+            min="1"
+            max="24"
+            type="number"
+            value={posterizeColorCount}
+            onChange={(event) =>
+              onSetPosterizeColorCount(Number(event.target.value))
+            }
+          />
+        </label>
+        {detectedColors.length > 0 ? (
+          <div className="detected-colors">
+            {detectedColors.map((detectedColor) => (
+              <label className="detected-color-row" key={detectedColor.hex}>
+                <span
+                  className="detected-swatch"
+                  style={{ backgroundColor: detectedColor.hex }}
+                />
+                <span className="detected-hex">{detectedColor.hex}</span>
+                <select
+                  value={
+                    colorMappings[detectedColor.hex] ??
+                    nearestHex(detectedColor.hex, colors).id
+                  }
+                  onChange={(event) =>
+                    onMapDetectedColor(detectedColor.hex, event.target.value)
+                  }
+                >
+                  {colors.map((color) => (
+                    <option key={color.id} value={color.id}>
+                      {color.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-note">Upload an image to detect colors.</p>
+        )}
       </div>
       <div className="counts-header">
         <div>
