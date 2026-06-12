@@ -55,6 +55,8 @@ export type ImageSize = {
   height: number
 }
 
+export type OverlaySource = 'original' | 'posterized'
+
 export type SavedWork = {
   id: string
   name: string

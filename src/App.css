@@ -548,6 +548,28 @@ button:disabled {
   border-bottom: 1px solid #e6eaf1;
 }
 
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  border: 1px solid #c7cfdd;
+  border-radius: 8px;
+  padding: 4px;
+  background: #f6f7fb;
+}
+
+.segmented-control button {
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+}
+
+.segmented-control button.active {
+  background: #172033;
+  color: #ffffff;
+}
+
 .detected-colors {
   display: flex;
   flex-direction: column;

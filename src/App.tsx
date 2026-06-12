@@ -7,7 +7,7 @@ import { defaultColors } from './constants'
 import { useCrop } from './hooks/useCrop'
 import { useRasterizedImage } from './hooks/useRasterizedImage'
 import { useSavedWorks } from './hooks/useSavedWorks'
-import type { PearlColor, SavedWork } from './types'
+import type { OverlaySource, PearlColor, SavedWork } from './types'
 import { downloadSvgFile, printTemplatePages } from './utils/export'
 import { makeId } from './utils/misc'
 import { decodeSavedCells, encodeCells } from './utils/savedWorks'
@@ -25,6 +25,7 @@ function App() {
   const [newColorHex, setNewColorHex] = useState('#7c3aed')
   const [posterizeColorCount, setPosterizeColorCount] = useState(5)
   const [colorMappings, setColorMappings] = useState<Record<string, string>>({})
+  const [overlaySource, setOverlaySource] = useState<OverlaySource>('original')
   const [imageOpacity, setImageOpacity] = useState(35)
   const [projectName, setProjectName] = useState('Pearl template')
   const [message, setMessage] = useState('')
@@ -63,9 +64,11 @@ function App() {
     cells,
     croppedImageDataUrl,
     detectedColors,
+    posterizedImageDataUrl,
     setCells,
     setCroppedImageDataUrl,
     setDetectedColors,
+    setPosterizedImageDataUrl,
   } = useRasterizedImage({
     colorMappings: effectiveColorMappings,
     colors,
@@ -75,6 +78,8 @@ function App() {
     posterizeColorCount,
     rows,
   })
+  const overlayImageDataUrl =
+    overlaySource === 'posterized' ? posterizedImageDataUrl : croppedImageDataUrl
 
   const colorCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -91,12 +96,12 @@ function App() {
         cells,
         colorCounts,
         columns,
-        croppedImageDataUrl,
+        croppedImageDataUrl: overlayImageDataUrl,
         imageOpacity,
         projectName,
         rows,
       }),
-    [cells, colorCounts, columns, croppedImageDataUrl, imageOpacity, projectName, rows],
+    [cells, colorCounts, columns, overlayImageDataUrl, imageOpacity, projectName, rows],
   )
 
   const printSvgMarkup = useMemo(
@@ -273,6 +278,7 @@ function App() {
     setCells(decodeSavedCells(work))
     setCroppedImageDataUrl('')
     setDetectedColors([])
+    setPosterizedImageDataUrl('')
     setColorMappings({})
     setImageUrl('')
     setImageSize({ width: 0, height: 0 })
@@ -332,7 +338,7 @@ function App() {
             <PatternPreview
               cells={cells}
               columns={columns}
-              croppedImageDataUrl={croppedImageDataUrl}
+              croppedImageDataUrl={overlayImageDataUrl}
               imageOpacity={imageOpacity}
               onPaintCell={paintCell}
               rows={rows}
@@ -354,8 +360,10 @@ function App() {
               onSetImageOpacity={setImageOpacity}
               onSetNewColorHex={setNewColorHex}
               onSetNewColorName={setNewColorName}
+              onSetOverlaySource={setOverlaySource}
               onSetPosterizeColorCount={setPosterizeCount}
               onUpdateColor={updateColor}
+              overlaySource={overlaySource}
               posterizeColorCount={posterizeColorCount}
               selectedColor={selectedColor}
             />

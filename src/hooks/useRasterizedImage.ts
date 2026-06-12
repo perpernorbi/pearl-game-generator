@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Crop, DetectedColor, PearlColor } from '../types'
+import { hexToRgb } from '../utils/color'
 import { nearestHex, quantizeImageData } from '../utils/posterize'
 
 type UseRasterizedImageOptions = {
@@ -24,6 +25,7 @@ export function useRasterizedImage({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [cells, setCells] = useState<string[]>([])
   const [croppedImageDataUrl, setCroppedImageDataUrl] = useState('')
+  const [posterizedImageDataUrl, setPosterizedImageDataUrl] = useState('')
   const [detectedColors, setDetectedColors] = useState<DetectedColor[]>([])
   const { height: cropHeight, width: cropWidth, x: cropX, y: cropY } = crop
 
@@ -66,6 +68,14 @@ export function useRasterizedImage({
       )
       const posterized = quantizeImageData(imageData, posterizeColorCount)
       setDetectedColors(posterized.colors)
+      setPosterizedImageDataUrl(
+        createPosterizedImageDataUrl(
+          posterized.indexes,
+          posterized.colors,
+          posterizedSize.width,
+          posterizedSize.height,
+        ),
+      )
 
       const rendered = Array.from({ length: columns * rows }, (_, cellIndex) => {
         const dominantColor = getDominantDetectedColor(
@@ -104,10 +114,37 @@ export function useRasterizedImage({
     cells,
     croppedImageDataUrl,
     detectedColors,
+    posterizedImageDataUrl,
     setCells,
     setCroppedImageDataUrl,
     setDetectedColors,
+    setPosterizedImageDataUrl,
   }
+}
+
+const createPosterizedImageDataUrl = (
+  indexes: Uint16Array,
+  colors: DetectedColor[],
+  width: number,
+  height: number,
+) => {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d')
+  if (!context) return ''
+
+  const imageData = context.createImageData(width, height)
+  indexes.forEach((colorIndex, index) => {
+    const rgb = hexToRgb(colors[colorIndex]?.hex ?? '#ffffff')
+    const offset = index * 4
+    imageData.data[offset] = rgb.r
+    imageData.data[offset + 1] = rgb.g
+    imageData.data[offset + 2] = rgb.b
+    imageData.data[offset + 3] = 255
+  })
+  context.putImageData(imageData, 0, 0)
+  return canvas.toDataURL('image/png')
 }
 
 const getPosterizedCanvasSize = (cropWidth: number, cropHeight: number) => {

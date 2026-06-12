@@ -1,5 +1,10 @@
 import type { KeyboardEvent } from 'react'
-import type { ColorCount, DetectedColor, PearlColor } from '../types'
+import type {
+  ColorCount,
+  DetectedColor,
+  OverlaySource,
+  PearlColor,
+} from '../types'
 import { nearestHex } from '../utils/posterize'
 import { TrashIcon } from './Icons'
 
@@ -18,8 +23,10 @@ type ColorPanelProps = {
   onSetImageOpacity: (opacity: number) => void
   onSetNewColorHex: (hex: string) => void
   onSetNewColorName: (name: string) => void
+  onSetOverlaySource: (source: OverlaySource) => void
   onSetPosterizeColorCount: (count: number) => void
   onUpdateColor: (id: string, patch: Partial<PearlColor>) => void
+  overlaySource: OverlaySource
   posterizeColorCount: number
   selectedColor: PearlColor | undefined
 }
@@ -39,8 +46,10 @@ export function ColorPanel({
   onSetImageOpacity,
   onSetNewColorHex,
   onSetNewColorName,
+  onSetOverlaySource,
   onSetPosterizeColorCount,
   onUpdateColor,
+  overlaySource,
   posterizeColorCount,
   selectedColor,
 }: ColorPanelProps) {
@@ -58,6 +67,22 @@ export function ColorPanel({
     <section className="counts">
       <div className="guide-control">
         <h2>Image guide</h2>
+        <div className="segmented-control" role="group" aria-label="Overlay source">
+          <button
+            type="button"
+            className={overlaySource === 'original' ? 'active' : ''}
+            onClick={() => onSetOverlaySource('original')}
+          >
+            Original
+          </button>
+          <button
+            type="button"
+            className={overlaySource === 'posterized' ? 'active' : ''}
+            onClick={() => onSetOverlaySource('posterized')}
+          >
+            Posterized
+          </button>
+        </div>
         <label className="field">
           <span>Overlay opacity: {imageOpacity}%</span>
           <input
