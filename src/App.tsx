@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { ColorPanel } from './components/ColorPanel'
 import { LeftPanel } from './components/LeftPanel'
@@ -14,6 +14,7 @@ import { decodeSavedCells, encodeCells } from './utils/savedWorks'
 import { createPhysicalTemplateSvg, createTemplateSvg } from './utils/svg'
 
 function App() {
+  const [originalImageUrl, setOriginalImageUrl] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [columns, setColumns] = useState(29)
   const [rows, setRows] = useState(29)
@@ -27,6 +28,8 @@ function App() {
   const [colorMappings, setColorMappings] = useState<Record<string, string>>({})
   const [overlaySource, setOverlaySource] = useState<OverlaySource>('original')
   const [imageOpacity, setImageOpacity] = useState(35)
+  const [paddingColor, setPaddingColor] = useState('#ffffff')
+  const [isPickingPaddingColor, setIsPickingPaddingColor] = useState(false)
   const [projectName, setProjectName] = useState('Pearl template')
   const [message, setMessage] = useState('')
 
@@ -80,6 +83,16 @@ function App() {
   })
   const overlayImageDataUrl =
     overlaySource === 'posterized' ? posterizedImageDataUrl : croppedImageDataUrl
+
+  useEffect(() => {
+    if (!originalImageUrl) return
+
+    const image = new Image()
+    image.onload = () => {
+      setImageUrl(createSquarePaddedImageDataUrl(image, paddingColor))
+    }
+    image.src = originalImageUrl
+  }, [originalImageUrl, paddingColor])
 
   const colorCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -138,11 +151,12 @@ function App() {
     const url = URL.createObjectURL(file)
     const image = new Image()
     image.onload = () => {
-      setImageUrl((current) => {
+      setOriginalImageUrl((current) => {
         if (current) URL.revokeObjectURL(current)
         return url
       })
-      const nextImageSize = { width: image.width, height: image.height }
+      const squareSize = Math.max(image.width, image.height)
+      const nextImageSize = { width: squareSize, height: squareSize }
       setCropForImage(nextImageSize, cropAspect)
       setMessage(`Loaded ${file.name}`)
     }
@@ -158,6 +172,39 @@ function App() {
       ...current,
       [detectedHex]: pearlColorId,
     }))
+  }
+
+  const pickPaddingColor = (clientX: number, clientY: number) => {
+    const stage = cropStageRef.current
+    if (!stage || !imageUrl) return
+
+    const rect = stage.getBoundingClientRect()
+    const image = new Image()
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(rect.width))
+      canvas.height = Math.max(1, Math.round(rect.height))
+      const context = canvas.getContext('2d', { willReadFrequently: true })
+      if (!context) return
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      const x = Math.max(
+        0,
+        Math.min(canvas.width - 1, Math.floor(clientX - rect.left)),
+      )
+      const y = Math.max(
+        0,
+        Math.min(canvas.height - 1, Math.floor(clientY - rect.top)),
+      )
+      const pixel = context.getImageData(x, y, 1, 1).data
+      setPaddingColor(
+        `#${[pixel[0], pixel[1], pixel[2]]
+          .map((value) => value.toString(16).padStart(2, '0'))
+          .join('')}`,
+      )
+      setIsPickingPaddingColor(false)
+    }
+    image.src = imageUrl
   }
 
   const setGridColumns = (nextColumns: number) => {
@@ -280,8 +327,10 @@ function App() {
     setDetectedColors([])
     setPosterizedImageDataUrl('')
     setColorMappings({})
+    setOriginalImageUrl('')
     setImageUrl('')
     setImageSize({ width: 0, height: 0 })
+    setIsPickingPaddingColor(false)
     setMessage(`Loaded saved work: ${work.name}`)
   }
 
@@ -310,12 +359,16 @@ function App() {
           columns={columns}
           cropPercent={cropPercent}
           imageUrl={imageUrl}
+          isPickingPaddingColor={isPickingPaddingColor}
           message={message}
           onDeleteSavedWork={deleteSavedWork}
           onEndCropDrag={endCropDrag}
           onLoadSavedWork={loadSavedWork}
+          onPickPaddingColor={pickPaddingColor}
           onRenameSavedWork={renameSavedWork}
           onSetColumns={setGridColumns}
+          onSetIsPickingPaddingColor={setIsPickingPaddingColor}
+          onSetPaddingColor={setPaddingColor}
           onSetPhysicalHeight={setTemplatePhysicalHeight}
           onSetPhysicalWidth={setTemplatePhysicalWidth}
           onSetProjectName={setProjectName}
@@ -326,6 +379,7 @@ function App() {
           onUpdateCropDrag={updateCropDrag}
           onUpload={handleUpload}
           projectName={projectName}
+          paddingColor={paddingColor}
           physicalHeight={physicalHeight}
           physicalWidth={physicalWidth}
           rows={rows}
@@ -380,5 +434,28 @@ const normalizeDimension = (value: number) =>
   Number.isFinite(value) ? Math.max(1, value) : 1
 
 const roundDimension = (value: number) => Math.round(value * 10) / 10
+
+const createSquarePaddedImageDataUrl = (
+  image: HTMLImageElement,
+  backgroundColor: string,
+) => {
+  const size = Math.max(image.width, image.height)
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const context = canvas.getContext('2d')
+  if (!context) return ''
+
+  context.fillStyle = backgroundColor
+  context.fillRect(0, 0, size, size)
+  context.drawImage(
+    image,
+    (size - image.width) / 2,
+    (size - image.height) / 2,
+    image.width,
+    image.height,
+  )
+  return canvas.toDataURL('image/png')
+}
 
 export default App

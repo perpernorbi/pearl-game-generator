@@ -15,6 +15,8 @@ const cropHandles: CropAction[] = [
 type CropEditorProps = {
   cropPercent: CropPercent
   imageUrl: string
+  isPickingPaddingColor: boolean
+  onPickPaddingColor: (clientX: number, clientY: number) => void
   onPointerCancel: (event: PointerEvent<HTMLDivElement>) => void
   onPointerMove: (event: PointerEvent<HTMLDivElement>) => void
   onPointerUp: (event: PointerEvent<HTMLDivElement>) => void
@@ -25,6 +27,8 @@ type CropEditorProps = {
 export function CropEditor({
   cropPercent,
   imageUrl,
+  isPickingPaddingColor,
+  onPickPaddingColor,
   onPointerCancel,
   onPointerMove,
   onPointerUp,
@@ -38,11 +42,16 @@ export function CropEditor({
   return (
     <>
       <div
-        className="crop-stage"
+        className={`crop-stage ${isPickingPaddingColor ? 'picking-color' : ''}`}
         ref={stageRef}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
+        onPointerDown={(event) => {
+          if (!isPickingPaddingColor) return
+          event.preventDefault()
+          onPickPaddingColor(event.clientX, event.clientY)
+        }}
       >
         <img src={imageUrl} alt="Uploaded crop source" draggable="false" />
         <div
@@ -77,7 +86,14 @@ export function CropEditor({
             width: `${cropPercent.width}%`,
             height: `${cropPercent.height}%`,
           }}
-          onPointerDown={(event) => onStartDrag('move', event)}
+          onPointerDown={(event) => {
+            if (isPickingPaddingColor) {
+              event.preventDefault()
+              onPickPaddingColor(event.clientX, event.clientY)
+              return
+            }
+            onStartDrag('move', event)
+          }}
         >
           {cropHandles.map((handle) => (
             <span
@@ -85,6 +101,11 @@ export function CropEditor({
               key={handle}
               onPointerDown={(event) => {
                 event.stopPropagation()
+                if (isPickingPaddingColor) {
+                  event.preventDefault()
+                  onPickPaddingColor(event.clientX, event.clientY)
+                  return
+                }
                 onStartDrag(handle, event)
               }}
             />
@@ -92,7 +113,9 @@ export function CropEditor({
         </div>
       </div>
       <p className="empty-note">
-        Drag the rectangle to move it, or drag an edge or corner to resize.
+        {isPickingPaddingColor
+          ? 'Click the image to sample the square padding color.'
+          : 'Drag the rectangle to move it, or drag an edge or corner to resize.'}
       </p>
     </>
   )

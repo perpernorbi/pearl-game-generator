@@ -126,6 +126,21 @@ button:disabled {
   color: #172033;
 }
 
+.field input[type='color'] {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #c7cfdd;
+  border-radius: 7px;
+  padding: 3px;
+  background: #ffffff;
+}
+
+.field-with-button button.active {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
 .upload-field input {
   border: 1px dashed #a8b2c4;
   border-radius: 7px;
@@ -160,6 +175,23 @@ button:disabled {
   background: #eef2f7;
   touch-action: none;
   user-select: none;
+}
+
+.crop-stage.picking-color {
+  cursor: crosshair;
+}
+
+.crop-stage.picking-color .crop-box,
+.crop-stage.picking-color .crop-handle,
+.crop-stage.picking-color .crop-handle-north,
+.crop-stage.picking-color .crop-handle-south,
+.crop-stage.picking-color .crop-handle-east,
+.crop-stage.picking-color .crop-handle-west,
+.crop-stage.picking-color .crop-handle-north-east,
+.crop-stage.picking-color .crop-handle-south-east,
+.crop-stage.picking-color .crop-handle-south-west,
+.crop-stage.picking-color .crop-handle-north-west {
+  cursor: crosshair;
 }
 
 .crop-stage img {

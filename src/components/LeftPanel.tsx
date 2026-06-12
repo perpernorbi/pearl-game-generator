@@ -11,11 +11,15 @@ type LeftPanelProps = {
   columns: number
   cropPercent: CropPercent
   imageUrl: string
+  isPickingPaddingColor: boolean
   message: string
   onDeleteSavedWork: (id: string) => void
   onLoadSavedWork: (work: SavedWork) => void
+  onPickPaddingColor: (clientX: number, clientY: number) => void
   onRenameSavedWork: (id: string, name: string) => void
   onSetColumns: (columns: number) => void
+  onSetIsPickingPaddingColor: (isPicking: boolean) => void
+  onSetPaddingColor: (color: string) => void
   onSetPhysicalHeight: (height: number) => void
   onSetPhysicalWidth: (width: number) => void
   onSetProjectName: (name: string) => void
@@ -27,6 +31,7 @@ type LeftPanelProps = {
   onUpdateCropDrag: (event: PointerEvent<HTMLDivElement>) => void
   onEndCropDrag: (event: PointerEvent<HTMLDivElement>) => void
   onUpload: (file: File | undefined) => void
+  paddingColor: string
   projectName: string
   physicalHeight: number
   physicalWidth: number
@@ -39,12 +44,16 @@ export function LeftPanel({
   columns,
   cropPercent,
   imageUrl,
+  isPickingPaddingColor,
   message,
   onDeleteSavedWork,
   onEndCropDrag,
   onLoadSavedWork,
+  onPickPaddingColor,
   onRenameSavedWork,
   onSetColumns,
+  onSetIsPickingPaddingColor,
+  onSetPaddingColor,
   onSetPhysicalHeight,
   onSetPhysicalWidth,
   onSetProjectName,
@@ -52,6 +61,7 @@ export function LeftPanel({
   onStartCropDrag,
   onUpdateCropDrag,
   onUpload,
+  paddingColor,
   projectName,
   physicalHeight,
   physicalWidth,
@@ -129,12 +139,35 @@ export function LeftPanel({
         <CropEditor
           cropPercent={cropPercent}
           imageUrl={imageUrl}
+          isPickingPaddingColor={isPickingPaddingColor}
           onPointerCancel={onEndCropDrag}
           onPointerMove={onUpdateCropDrag}
           onPointerUp={onEndCropDrag}
+          onPickPaddingColor={onPickPaddingColor}
           onStartDrag={onStartCropDrag}
           stageRef={stageRef}
         />
+        <div className="field-row">
+          <label className="field">
+            <span>Padding color</span>
+            <input
+              type="color"
+              value={paddingColor}
+              onChange={(event) => onSetPaddingColor(event.target.value)}
+            />
+          </label>
+          <label className="field field-with-button">
+            <span>Pick from image</span>
+            <button
+              type="button"
+              className={isPickingPaddingColor ? 'active' : ''}
+              disabled={!imageUrl}
+              onClick={() => onSetIsPickingPaddingColor(!isPickingPaddingColor)}
+            >
+              {isPickingPaddingColor ? 'Picking...' : 'Pick color'}
+            </button>
+          </label>
+        </div>
       </section>
 
       <section className="panel">
