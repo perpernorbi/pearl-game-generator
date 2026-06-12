@@ -8,7 +8,7 @@ export function usePaletteEditor() {
   const [selectedColorId, setSelectedColorId] = useState(defaultColors[0].id)
   const [newColorName, setNewColorName] = useState('New color')
   const [newColorHex, setNewColorHex] = useState('#7c3aed')
-  const [posterizeColorCount, setPosterizeColorCount] = useState(5)
+  const [posterizeColorCount, setPosterizeColorCount] = useState(3)
   const [colorMappings, setColorMappings] = useState<Record<string, string>>({})
 
   const selectedColor =

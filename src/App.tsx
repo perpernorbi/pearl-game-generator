@@ -43,22 +43,6 @@ function App() {
     setTemplatePhysicalHeight,
     setTemplatePhysicalWidth,
   } = usePhysicalTemplateSize({ onGridSizeChange: setCropForGrid })
-  const cropAspect = columns / rows
-  const {
-    clearSourceImage,
-    handleUpload,
-    imageUrl,
-    isPickingPaddingColor,
-    paddingColor,
-    pickPaddingColor,
-    setIsPickingPaddingColor,
-    setPaddingColor,
-  } = useSourceImage({
-    cropAspect,
-    cropStageRef,
-    onImageSizeChange: setCropForImage,
-    setMessage,
-  })
   const {
     addColor,
     colors,
@@ -76,6 +60,22 @@ function App() {
     setSelectedColorId,
     updateColor: updatePaletteColor,
   } = usePaletteEditor()
+  const cropAspect = columns / rows
+  const {
+    clearSourceImage,
+    handleUpload,
+    imageUrl,
+    isPickingPaddingColor,
+    paddingColor,
+    pickPaddingColor,
+    setIsPickingPaddingColor,
+    setPaddingColor,
+  } = useSourceImage({
+    cropAspect,
+    cropStageRef,
+    onImageSizeChange: setCropForImage,
+    setMessage,
+  })
   const {
     canvasRef,
     cells,
