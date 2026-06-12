@@ -97,9 +97,9 @@ export function ColorPanel({
       <div className="guide-control">
         <h2>Posterize</h2>
         <label className="field">
-          <span>Detected color count</span>
+          <span>Additional detected colors</span>
           <input
-            min="1"
+            min="0"
             max="24"
             type="number"
             value={posterizeColorCount}

@@ -150,7 +150,7 @@ function App() {
   }
 
   const setPosterizeCount = (count: number) => {
-    setPosterizeColorCount(Math.max(1, Math.min(24, Math.round(count))))
+    setPosterizeColorCount(Math.max(0, Math.min(24, Math.round(count))))
   }
 
   const mapDetectedColor = (detectedHex: string, pearlColorId: string) => {
