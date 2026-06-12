@@ -71,20 +71,20 @@ export function LeftPanel({
 }: LeftPanelProps) {
   return (
     <aside className="controls">
-      <label className="field">
-        <span>Template name</span>
-        <input
-          value={projectName}
-          onChange={(event) => onSetProjectName(event.target.value)}
-        />
-      </label>
-
       <label className="field upload-field">
         <span>Picture upload</span>
         <input
           accept="image/*"
           type="file"
           onChange={(event) => onUpload(event.target.files?.[0])}
+        />
+      </label>
+
+      <label className="field">
+        <span>Template name</span>
+        <input
+          value={projectName}
+          onChange={(event) => onSetProjectName(event.target.value)}
         />
       </label>
 

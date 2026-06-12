@@ -74,6 +74,7 @@ function App() {
     cropAspect,
     cropStageRef,
     onImageSizeChange: setCropForImage,
+    onImageNameChange: setProjectName,
     setMessage,
   })
   const {

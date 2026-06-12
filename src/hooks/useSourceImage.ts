@@ -6,6 +6,7 @@ type UseSourceImageOptions = {
   cropAspect: number
   cropStageRef: RefObject<HTMLDivElement | null>
   onImageSizeChange: (imageSize: ImageSize, aspect: number) => void
+  onImageNameChange?: (name: string) => void
   setMessage: (message: string) => void
 }
 
@@ -13,6 +14,7 @@ export function useSourceImage({
   cropAspect,
   cropStageRef,
   onImageSizeChange,
+  onImageNameChange,
   setMessage,
 }: UseSourceImageOptions) {
   const [originalImageUrl, setOriginalImageUrl] = useState('')
@@ -41,6 +43,7 @@ export function useSourceImage({
       })
       const squareSize = Math.max(image.width, image.height)
       onImageSizeChange({ width: squareSize, height: squareSize }, cropAspect)
+      onImageNameChange?.(nameWithoutExtension(file.name))
       setMessage(`Loaded ${file.name}`)
     }
     image.src = url
@@ -96,6 +99,12 @@ export function useSourceImage({
     setIsPickingPaddingColor,
     setPaddingColor,
   }
+}
+
+const nameWithoutExtension = (fileName: string) => {
+  const trimmedName = fileName.trim()
+  const withoutExtension = trimmedName.replace(/\.[^/.]+$/, '')
+  return withoutExtension || trimmedName || 'Pearl template'
 }
 
 const createSquarePaddedImageDataUrl = (
